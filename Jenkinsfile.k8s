@@ -1,0 +1,29 @@
+pipeline {
+    agent any
+    stages {
+        stage('Build Images in Minikube') {
+            steps {
+                sh '''
+                  export PATH=$PATH:/usr/local/bin:/home/ubuntu/.local/bin
+                  eval $(minikube docker-env)
+                  docker build -t nescon-backend:latest .
+                  docker build -f Dockerfile.frontend -t nescon-frontend:latest .
+                  docker images | grep nescon
+                '''
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh '''
+                  kubectl apply -f k8s/
+                  kubectl rollout status deployment/nescon-backend || true
+                  kubectl rollout status deployment/nescon-frontend || true
+                  sleep 10
+                  kubectl get pods
+                  kubectl get svc
+                '''
+            }
+        }
+    }
+    post { success { echo 'NESCON deployed to Kubernetes (Minikube) successfully!' } }
+}

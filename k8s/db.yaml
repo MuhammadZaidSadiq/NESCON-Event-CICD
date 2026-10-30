@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nescon-db-secret
+type: Opaque
+stringData:
+  mysql-root-password: rootpass
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nescon-db-init
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS nescon_db;
+    USE nescon_db;
+    CREATE TABLE IF NOT EXISTS events (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(150) NOT NULL, category VARCHAR(80) NOT NULL, event_date VARCHAR(50) NOT NULL, venue VARCHAR(120) NOT NULL, seats INT NOT NULL DEFAULT 100);
+    CREATE TABLE IF NOT EXISTS registrations (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) NOT NULL, email VARCHAR(120) NOT NULL, event_id INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (event_id) REFERENCES events(id));
+    INSERT INTO events (title,category,event_date,venue,seats) VALUES ('Opening Ceremony & Keynote','Main Event','Day 1 - 9:00 AM','Main Auditorium',300),('Robo Wars','Competition','Day 1 - 11:00 AM','EE Block Ground',80),('Speed Programming','Competition','Day 1 - 2:00 PM','CS Labs',120),('Gaming Arena - FIFA & Tekken','Gaming','Day 2 - 10:00 AM','Student Lounge',100),('Project Exhibition','Exhibition','Day 2 - 12:00 PM','Main Hall',150),('Closing & Prize Distribution','Main Event','Day 2 - 4:00 PM','Main Auditorium',300);
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nescon-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: nescon-db}
+  template:
+    metadata:
+      labels: {app: nescon-db}
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports: [{containerPort: 3306}]
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom: {secretKeyRef: {name: nescon-db-secret, key: mysql-root-password}}
+        - name: MYSQL_DATABASE
+          value: nescon_db
+        volumeMounts:
+        - name: init
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: init
+        configMap: {name: nescon-db-init}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  selector: {app: nescon-db}
+  ports: [{port: 3306, targetPort: 3306}]

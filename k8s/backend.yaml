@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nescon-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: nescon-backend}
+  template:
+    metadata:
+      labels: {app: nescon-backend}
+    spec:
+      containers:
+      - name: backend
+        image: nescon-backend:latest
+        imagePullPolicy: Never
+        ports: [{containerPort: 80}]
+        env:
+        - {name: DB_HOST, value: "db"}
+        - {name: DB_USER, value: "root"}
+        - {name: DB_PASS, value: "rootpass"}
+        - {name: DB_NAME, value: "nescon_db"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector: {app: nescon-backend}
+  ports: [{port: 80, targetPort: 80}]
